@@ -1,0 +1,9 @@
+venv
+
+*.vim
+
+__pycache__
+*.swp
+*.swo
+
+sorted_docs
