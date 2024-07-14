@@ -64,5 +64,5 @@ async def create_file_access(file_id:ObjectId, req:Request, p:ObjectId):
         
         return JSONResponse(content = {'detail': e.detail if hasattr(e,'detail') else "Internal server error"}, status_code = e.status_code if hasattr(e,'status_code') else 500)
 
-@router.get("/viewFile/{file_id}")
-def view_file
+#@router.get("/viewFile/{file_id}")
+#def view_file
