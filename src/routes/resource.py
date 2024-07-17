@@ -52,17 +52,31 @@ async def upload_file(req: Request,tags: list[str] = Form(...) , file: UploadFil
     print(f'file_data: {file_data}\n')
 
 #@router.post("/createFileAccess/{file_id}")
-#async def create_file_access(file_id:ObjectId, req:Request, p:ObjectId):
+#async def create_file_access(file_id:str, req:Request, p:str):
 #    try:
 #        user_id = req.state.session["user_id"]
 #        access_id = ''
 #        with client.start_session() as session:
 #            access_id = session.with_transaction(lambda s: create_file_access_callback(s,file_id, user_id,peer_id))
-#        return JSONResponse(content={"detail":"File access generated for 1hr","access_id":access_id},statu_code = 200)
+#        return JSONResponse(content={"detail":"File access generated for 1hr","access_id":access_id},status_code = 200)
 #    except Exception as e:
 #        print(f"Error: {e}")
 #        
 #        return JSONResponse(content = {'detail': e.detail if hasattr(e,'detail') else "Internal server error"}, status_code = e.status_code if hasattr(e,'status_code') else 500)
-#
+
+@router.post("/tempFileShare/{file_id}")
+async def temp_file_share(file_id:str, req:Request, p:str):
+    try:
+        user_id = req.state.session["user_id"]
+        access_id = ''
+        peer_id = p
+        with client.start_session() as session:
+            access_id = session.with_transaction(lambda s: temp_file_share_callback(s,file_id, user_id,peer_id))
+        return JSONResponse(content={"detail":"File access generated for 30 minutes","access_id":access_id},status_code = 200)
+    except Exception as e:
+        print(f"Error: {e}")
+        
+        return JSONResponse(content = {'detail': e.detail if hasattr(e,'detail') else "Internal server error"}, status_code = e.status_code if hasattr(e,'status_code') else 500)
+
 #@router.get("/viewFile/{file_id}")
 #def view_file

@@ -30,6 +30,10 @@ otp_transactions_collection = db["otp_transactions"]
 # ttl index on otp_transactions collection
 # after 5 minutes, the document will be automatically deleted
 otp_transactions_collection.create_index([("createdAt", pymongo.ASCENDING)], expireAfterSeconds=300)
+temporarily_shared_files_collection = db["temporarily_shared_files"]
+# ttl index on temporarily_shared_files collection
+# after 30 minutes, the document will be automatically deleted
+temporarily_shared_files_collection.create_index([("createdAt", pymongo.ASCENDING)], expireAfterSeconds=1800)
 
 notifications_collection = db["notifications"]
 notifications_collection.create_index([("subscriberId", pymongo.ASCENDING)])

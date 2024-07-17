@@ -12,14 +12,17 @@ AWS_SSE_KEY = os.getenv("AWS_SSE_KEY")
 AWS_SSE_ALGORITHM = os.getenv("AWS_SSE_ALGORITHM")
 
 class S3Client:
-    def __init__(self):
+    def __init__(self,bucket_name=None):
         self.client = boto3.client(
             "s3",
             aws_access_key_id=ACCESS_KEY,
             aws_secret_access_key=SECRET_KEY,
             region_name=REGION
         )
-        self.bucket_name = BUCKET_NAME
+        if bucket_name is not None:
+            self.bucket_name = bucket_name
+        else:
+            self.bucket_name = BUCKET_NAME
 
     def put_object(self, file_name: str, key: str, bucket_name : str = None):
         # handles multipart uploads for large files automatically
@@ -44,11 +47,13 @@ class S3Client:
             return "Partial credentials available"
             print("Partial credentials available")
 
-    def get_object(self, file_name: str, bucket_name: str):
+    def get_object(self, file_name: str, bucket_name: str = None):
         # file_name: name of the file
         # bucket_name: name of the bucket
         # returns the file object
         try:
+            if bucket_name is None:
+                bucket_name = self.bucket_name
             response = self.client.get_object(
                     Bucket=bucket_name, 
                     key=file_name, 
@@ -63,7 +68,7 @@ class S3Client:
             print("Partial credentials available")
             return [None, "Partial credentials available"]
 
-    def generate_presigned_url(self, file_name: str, client_method: str, expiration: int) -> str :
+    def generate_presigned_url(self, object_key: str, client_method: str, expiration: int) -> str :
         # client_method: "get_object" or "put_object"
         # expiration: time in seconds
         # file_name: name of the file
@@ -73,7 +78,7 @@ class S3Client:
                 ClientMethod=client_method,
                 Params={
                     "Bucket": BUCKET_NAME,
-                    "Key": file_name
+                    "Key": object_key,
                     "SSECustomerAlgorithm": AWS_SSE_ALGORITHM,
                 },
                 ExpiresIn=expiration
