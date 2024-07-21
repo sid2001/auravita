@@ -5,7 +5,7 @@ from db.connection import db,client, async_client
 from bson import ObjectId
 from models.resource import UploadFileRequest, File as FileModel
 from utils.resource import  s3_object_key_generator
-from db.transactions.resource import upload_file_callback
+from db.transactions.resource import upload_file_callback, file_access_callback
 from services.aws_s3 import S3Client
 import traceback
 router = APIRouter()
@@ -29,7 +29,7 @@ async def get_file():
                     metadata: file["metadata"], 
                     data: file["data"],
                 
-                    }
+                }
             payload.append(data)
         return JSONResponse(content={"files": payload, "error": None}, status_code=status.HTTP_200_OK)
     except Exception as e:
@@ -73,18 +73,18 @@ async def upload_file(req: Request,tags: list[str] = Form(...) , file: UploadFil
         print(f"Error: {''.join(tb_str)}")
         return JSONResponse(content = {'detail': e.detail if hasattr(e,'detail') else "Internal server error"}, status_code = e.status_code if hasattr(e,'status_code') else 500)
 
-#@router.post("/createFileAccess/{file_id}")
-#async def create_file_access(file_id:str, req:Request, p:str):
-#    try:
-#        user_id = req.state.session["user_id"]
-#        access_id = ''
-#        with client.start_session() as session:
-#            access_id = session.with_transaction(lambda s: create_file_access_callback(s,file_id, user_id,peer_id))
-#        return JSONResponse(content={"detail":"File access generated for 1hr","access_id":access_id},status_code = 200)
-#    except Exception as e:
-#        print(f"Error: {e}")
-#        
-#        return JSONResponse(content = {'detail': e.detail if hasattr(e,'detail') else "Internal server error"}, status_code = e.status_code if hasattr(e,'status_code') else 500)
+@router.post("/createFileAccess/{file_id}")
+async def create_file_access(file_id:str, req:Request, p:str):
+    try:
+        user_id = req.state.session["user_id"]
+        access_id = ''
+        with client.start_session() as session:
+            access_id = session.with_transaction(lambda s: file_access_callback(s,file_id, user_id,peer_id))
+        return JSONResponse(content={"detail":"File access generated for 1hr","access_id":access_id},status_code = 200)
+    except Exception as e:
+        print(f"Error: {e}")
+        
+        return JSONResponse(content = {'detail': e.detail if hasattr(e,'detail') else "Internal server error"}, status_code = e.status_code if hasattr(e,'status_code') else 500)
 
 @router.post("/tempFileShare/{file_id}")
 async def temp_file_share(file_id:str, req:Request, p:str):

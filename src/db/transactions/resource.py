@@ -1,4 +1,3 @@
-#import asyncio
 from db.connection import client, db, async_client, async_db
 from bson import ObjectId
 from models.resource import TemporarilySharedFile
@@ -6,6 +5,7 @@ from fastapi import HTTPException
 from utils.resource import s3_object_key_generator
 from services.aws_s3 import S3Client
 from models.resource import File as FileModel, Metadata
+
 def file_access_callback(
     session,
     file_id: str,
