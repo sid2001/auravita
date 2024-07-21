@@ -9,7 +9,7 @@ class ContentLengthValidatorMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         print("Content Length Validator Middleware")
         try:
-            if(request.url.path == "/protected/resource/uploadFile" and request.method == "POST"):
+            if(request.url.path == "/resource/uploadFile" and request.method == "POST"):
                 content_size = request.headers.get("Content-Length")
                 if content_size:
                     if int(content_size) > self.max_content_length:

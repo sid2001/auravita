@@ -4,6 +4,8 @@ from db.connection import db
 from utils.crypto import encrypt, decrypt
 from bson import ObjectId
 from typing import Callable
+from fastapi import HTTPException, status
+from fastapi.responses  import JSONResponse
 from datetime import datetime, timedelta
 
 guest_session = {"name":"Anonymous","isLoggedIn": "False"}

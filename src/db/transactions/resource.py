@@ -1,9 +1,11 @@
-from db.connection import client, db
+#import asyncio
+from db.connection import client, db, async_client, async_db
 from bson import ObjectId
 from models.resource import TemporarilySharedFile
 from fastapi import HTTPException
-from services.s3 import S3Client
-
+from utils.resource import s3_object_key_generator
+from services.aws_s3 import S3Client
+from models.resource import File as FileModel, Metadata
 def file_access_callback(
     session,
     file_id: str,
@@ -146,6 +148,54 @@ def temp_file_share_callback(session,file_id,owner_id,accessor_id,access_type="r
     
     return
     
+
+async def upload_file_callback(
+        session,
+        file,
+        file_data,
+        user_id,
+):
+
+    file_collection = async_db["files"]
+
+    file_name = file.filename.split(".")[0]
+    owner_id = user_id;
+    content_type =file.content_type;
+    tags = file_data["tags"];
+    file_type = file_data["report_type"];
+    file_date = file_data["report_date"];
+    ext = content_type.split("/")[-1]
+    file_id = ObjectId()
+
+    print(f"file_type:{ext} content_type:{content_type}")
+    
+    object_key = s3_object_key_generator(ext,user_id,file_type,str(file_id))
+
+    file_object = FileModel(
+        id=file_id,
+        owner_id=ObjectId(owner_id),
+        metadata=Metadata(
+            object_key=object_key,
+            file_name=file_name,
+            tags=tags,
+            ext=ext,
+            file_type=file_type,
+            date=file_date
+        )
+    )
+    file_object = file_object.dict(by_alias=True)
+
+    await file_collection.insert_one(file_object,session=session)
+    
+    s3 = S3Client()
+    #file_content = await file.read()
+    #print("file_conte")
+    #print(f"type of file:{type(file)}")
+    res = await s3.put_object(file,object_key)
+    if res is not None:
+       raise HTTPException(detail="Failed file upload",status_code=503)
+        
+    return 
 
 
 def file_access_callback_wrapper(s,file_id,owner_id,access_type,accessor_id ):

@@ -11,7 +11,7 @@ from routes.user import router as user_router
 from routes.user_secure import router as protected_user_router
 import uvicorn
 import os
-from middlewares.auth import is_logged_in
+from middlewares.auth import IsLoggedIn 
 # Load environment variables
 load_dotenv()
 
@@ -29,12 +29,14 @@ app.add_middleware(
 
 app.add_middleware(SessionHandler)
 sub_app.add_middleware(ContentLengthValidatorMiddleware)
-sub_app.add_middleware(is_logged_in)
+sub_app.add_middleware(IsLoggedIn)
 
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(user_router, prefix="/user", tags=["user"])
 sub_app.include_router(protected_user_router, prefix="/user", tags=["user"])
-sub_app.include_router(resource_router, prefix="/resource", tags=["resource"])
+#sub_app.include_router(resource_router, prefix="/resource", tags=["resource"])
+app.include_router(resource_router, prefix="/resource", tags=["resource"])
+
 
 
 @app.get("/")

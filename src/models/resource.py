@@ -11,7 +11,7 @@ class Metadata(BaseModel):
 
 class File(BaseModel):
     id: ObjectId = Field(default_factory=ObjectId, alias="_id")
-    owner_id: str
+    owner_id: ObjectId
     metadata: Metadata
     access_list: list[str] = []
     data: dict = {}
@@ -33,7 +33,7 @@ class TemporarilySharedFile(BaseModel):
     file_id: ObjectId
     access_type: str = "r"
     accessor_id: ObjectId
-    created_at: str = datetime.utcnow()
+    created_at: str = dt.utcnow()
     presigned_url: str
     
     class Config():

@@ -2,6 +2,7 @@ from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 import pymongo
 from dotenv import load_dotenv
+from motor.motor_asyncio import AsyncIOMotorClient as AMongoClient
 import os
 
 load_dotenv()
@@ -11,16 +12,19 @@ db_name = os.getenv("DB_NAME")
 print(f"mongodb uri: {uri}")
 
 client = MongoClient(uri, server_api=ServerApi("1"))
+async_client = AMongoClient(uri, server_api=ServerApi("1"))
 
 try:
     print("Trying to connect to MongoDB uri: ",uri)
     client.admin.command("ping")
+    #async_client.admin.command("ping")
     print("Successfully pinged. Connected to MongoDB")
 except Exception as e:
     print(f"failed to connect to MongoDB\nERROR: {e}")
 
 
 db = client[db_name]
+async_db = async_client[db_name]
 
 User = db["users"]
 User.create_index([("phone",pymongo.ASCENDING)], unique=True)# unique index on phone number

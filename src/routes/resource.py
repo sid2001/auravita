@@ -1,9 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Body, Response, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from typing import Annotated
-from db.connection import db,client
+from db.connection import db,client, async_client
 from bson import ObjectId
 from models.resource import UploadFileRequest, File as FileModel
+from utils.resource import  s3_object_key_generator
+from db.transactions.resource import upload_file_callback
+from services.aws_s3 import S3Client
+import traceback
 router = APIRouter()
 
 @router.get("/userFiles")
@@ -38,18 +42,36 @@ async def get_file():
 
 @router.post("/uploadFile")
 async def upload_file(req: Request,tags: list[str] = Form(...) , file: UploadFile = File(...)):
-    file_data = {
-                "file_name": file.filename,
-                "content_type": file.content_type,
-            }
 
-    print(tags)
-    print(req.headers)
-    chunk = 0
-    while content := await file.read(1024*1024):
-        #print(f'chunk: {chunk}')
-        chunk += 1
-    print(f'file_data: {file_data}\n')
+    try:
+
+        user_id = req.state.session["user_id"]
+         
+        file_data = {
+                    "file_name": file.filename,
+                    "content_type": file.content_type,
+                }
+        dummy_data = {
+            "report_type": "doctor_prescription",
+            "report_date": "2021-09-15",
+            "tags": tags,
+        }
+        async with await async_client.start_session() as session:
+            async with session.start_transaction():
+                
+                await upload_file_callback(session,file,dummy_data,user_id)
+            
+        return JSONResponse(content={"detail":"File uploaded successfully"},status_code = 200)
+
+        #chunk = 0
+        #while content := await file.read(1024*1024):
+        #    #print(f'chunk: {chunk}')
+        #    chunk += 1
+        #print(f'file_data: {file_data}\n')
+    except Exception as e:
+        tb_str = traceback.format_exception(type(e), e, e.__traceback__)
+        print(f"Error: {''.join(tb_str)}")
+        return JSONResponse(content = {'detail': e.detail if hasattr(e,'detail') else "Internal server error"}, status_code = e.status_code if hasattr(e,'status_code') else 500)
 
 #@router.post("/createFileAccess/{file_id}")
 #async def create_file_access(file_id:str, req:Request, p:str):

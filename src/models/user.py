@@ -10,6 +10,8 @@ class PhoneNumber(BaseModel):
     def full_number(self):
         return f"+{self.country_code}{self.number}"
 
+class Metadata(BaseModel):
+    files: list[str] = []   
 class User(BaseModel):
     id: ObjectId = Field(default_factory=ObjectId, alias="_id")
     phone: PhoneNumber
@@ -19,7 +21,7 @@ class User(BaseModel):
     health_id: str | None = None
     created_at: str = str(dt.now().isoformat())
     updated_at: str | None = None
-
+    metadata : Metadata | None = None 
     class Config:
         populate_by_name = True
         arbitrary_types_allowed = True

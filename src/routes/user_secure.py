@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Request, FastAPI
 from sse_starlette.sse import EventSourceResponse
-from middlewares.auth import is_logged_in
 from services.notification import Notification_service 
 
 router = APIRouter()

@@ -2,13 +2,14 @@ import boto3
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError, ClientError
 from dotenv import load_dotenv
 import os
+import base64
 load_dotenv()
 
 ACCESS_KEY = os.getenv("AWS_ACCESS_KEY")
 SECRET_KEY = os.getenv("AWS_SECRET_KEY")
 REGION = os.getenv("AWS_REGION")
 BUCKET_NAME = os.getenv("AWS_BUCKET_NAME")
-AWS_SSE_KEY = os.getenv("AWS_SSE_KEY")
+AWS_SSE_KEY = base64.b64decode(os.getenv("AWS_SSE_KEY"))
 AWS_SSE_ALGORITHM = os.getenv("AWS_SSE_ALGORITHM")
 
 class S3Client:
@@ -24,18 +25,21 @@ class S3Client:
         else:
             self.bucket_name = BUCKET_NAME
 
-    def put_object(self, file_name: str, key: str, bucket_name : str = None):
+    async def put_object(self,file, key: str, bucket_name : str = None):
         # handles multipart uploads for large files automatically
         # use put_object for small files
         # file_name: name of the file
         # bucket_name: name of the bucket
         try:
+            content = await file.read()
+            #print(f"Content: {content}")
+            print(f"Key: {key}")
             if bucket_name is None:
                 bucket_name = self.bucket_name
             self.client.put_object(
-                    Body=file_name, 
-                    Bucket=bucket_name, 
-                    key=file_name,
+                    Body=content,
+                    Bucket="auravita", 
+                    Key=key,
                     SSECustomerKey=AWS_SSE_KEY,
                     SSECustomerAlgorithm=AWS_SSE_ALGORITHM
                     )

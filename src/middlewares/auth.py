@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 from typing import Callable
 from starlette.middleware.base import BaseHTTPMiddleware
 
-class is_logged_in(BaseHTTPMiddleware):
+class IsLoggedIn(BaseHTTPMiddleware):
     def __init__(self, app: Callable):
         super().__init__(app)
 
