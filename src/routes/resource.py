@@ -6,8 +6,9 @@ from bson import ObjectId
 from models.resource import UploadFileRequest, File as FileModel
 from serializers.resource import user_files_serializer
 from utils.resource import  s3_object_key_generator
-from db.transactions.resource import upload_file_callback, file_access_callback
+from db.transactions.resource import upload_file_callback, file_access_callback, revoke_file_access_callback
 from services.aws_s3 import S3Client
+from enum import Enum
 import traceback
 router = APIRouter()
 
@@ -71,17 +72,31 @@ async def upload_file(req: Request,tags: list[str] = Form(...) , file: UploadFil
         return JSONResponse(content = {'detail': e.detail if hasattr(e,'detail') else "Internal server error"}, status_code = e.status_code if hasattr(e,'status_code') else 500)
 
 @router.post("/createFileAccess/{file_id}")
-async def create_file_access(file_id:str, req:Request, p:str,t:str | None = 'r'):
+async def create_file_access(file_id:str, req:Request, p:str=Query(...),t:str = Query(default='r')):
     try:
         user_id = req.state.session["user_id"]
-        access_id = ''
         with client.start_session() as session:
-            session.with_transaction(lambda s: file_access_callback(s,file_id,user_id,t,p))
-        return JSONResponse(content={"detail":"File access generated for 1hr","access_id":access_id},status_code = 200)
+            session.with_transaction(lambda s: file_access_callback(session=s,file_id=file_id,owner_id=user_id,access_type=t,accessor_id=p))
+        return JSONResponse(content={"detail":"File access granted"},status_code = 200)
     except Exception as e:
         print(f"Error: {traceback.format_exception(type(e), e, e.__traceback__)}")
         
         return JSONResponse(content = {'detail': e.detail if hasattr(e,'detail') else "Internal server error"}, status_code = e.status_code if hasattr(e,'status_code') else 500)
+
+
+@router.post("/revokeFileAccess/{file_id}")
+def revoke_file_access(file_id:str, req:Request, p:str=Query(...)):
+    try:
+        user_id = req.state.session["user_id"]
+        with client.start_session() as session:
+            session.with_transaction(lambda s: revoke_file_access_callback(s,file_id,user_id,p))
+        return JSONResponse(content={"detail":"File access revoked"},status_code=200)
+    except Exception as e:
+        print(f"Error: {e}")
+        
+        return JSONResponse(content = {'detail': e.detail if hasattr(e,'detail') else "Internal server error"}, status_code = e.status_code if hasattr(e,'status_code') else 500)
+
+
 
 @router.post("/tempFileShare/{file_id}")
 async def temp_file_share(file_id:str, req:Request, p:str):
@@ -91,12 +106,46 @@ async def temp_file_share(file_id:str, req:Request, p:str):
         peer_id = p
         with client.start_session() as session:
             access_id = session.with_transaction(lambda s: temp_file_share_callback(s,file_id, user_id,peer_id))
+
         return JSONResponse(content={"detail":"File access generated for 30 minutes","access_id":access_id},status_code = 200)
     except Exception as e:
         print(f"Error: {e}")
         
         return JSONResponse(content = {'detail': e.detail if hasattr(e,'detail') else "Internal server error"}, status_code = e.status_code if hasattr(e,'status_code') else 500)
 
-#@router.get
-#@router.get("/viewFile/{file_id}")
-#def view_file
+@router.get("/fileURL/{file_id}")
+def get_file_url(req: Request,file_id:str,o:Enum(value='validator',names={'t':'1','f':'0'}) = Query(...)):
+    try:
+        print("o: ",o.value)
+        if o.value=='1':
+            #get file url for owner
+            user_id = req.state.session['user_id']
+            file_collection = db['files']
+            file_data = file_collection.find_one({"_id":ObjectId(file_id),"owner_id":ObjectId(user_id)},{"metadata.object_key":1})
+            print("file_data: ",file_data)
+            if file_data:
+                object_key = file_data["metadata"]["object_key"]
+                print("object key: ",object_key)
+                s3 = S3Client()
+                file_url = s3.generate_presigned_url(object_key,'get_object',120)
+                return JSONResponse(content={"url":file_url,"detail":'File access granted for 2 minutes'},status_code=200)
+            else:
+                raise HTTPException(detail='File not found',status_code=404)
+        else:
+            #get file url for other user
+            user_id = req.state.session["user_id"]
+            file_collection = db['files']
+            file_data = file_collection.find_one({"_id":ObjectId(file_id),"access_list":user_id},{"metadata.object_key":1})
+            if file_data:
+                object_key = file_data["metadata"]["object_key"]
+                s3 = S3Client()
+                file_url = s3.generate_presigned_url(object_key,'get_object',120)
+                return JSONResponse(content={"url":file_url,"detail":'File access granted for 2 minutes'},status_code=200)
+            else:
+                raise HTTPException(detail='File not found',status_code=404)
+    except Exception as e:
+        print(f"Error: {e}")
+        return JSONResponse(content = {'detail': e.detail if hasattr(e,'detail') else "Internal server error"}, status_code = e.status_code if hasattr(e,'status_code') else status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+

@@ -73,15 +73,18 @@ def file_access_callback(
     #    raise Exception("Failed to update access")
 
     # add doctor id to file document
-    access_list = file.get("access_list", []) 
-    access_list.append(accessor_id)
-
-    file_collection.update_one({"_id": ObjectId(file_id)}, {"$set": {"access_list": access_list}}, session=session)
+    #access_list = file.get("access_list", []) 
+    #print("access list ", access_list)
+    #access_list.append(accessor_id)
+    #print("access list ",access_list)
+    print("accessor_id: ",accessor_id)
+    file_collection.update_one({"_id": ObjectId(file_id)}, {"$addToSet": {"access_list": accessor_id}}, session=session)
     
    # if result.modified_count == 0:
    #     raise Exception("Failed to update access")
     
     return
+
 
 def revoke_file_access_callback(
     session,
@@ -92,42 +95,41 @@ def revoke_file_access_callback(
     user_collection = db["users"]
     file_collection = db["files"]
 
-    doctor = user_collection.find_one({"_id": ObjectId(accessor_id)}) # doctor
-    #patient = user_collection.find_one({"_id": ObjectId(owner_id)}) # patient
-    file = file_collection.find_one({"_id": ObjectId(file_id)}) # file
+    # Fetch the file document
+    file = file_collection.find_one({"_id": ObjectId(file_id)}, session=session)
 
-    if not doctor or not patient or not file:
-        raise Exception("Invalid details or file not found")
-    
-    # remove file from doctor's shared_files
+    if not file:
+        raise HTTPException(status_code=400, detail="Invalid details or file not found")
+
+    # Define the filter query for the user
     filter_query = {
-            "_id": ObjectId(accessor_id),
-            f"patients.{owner_id}.shared_files.file_id": ObjectId(file_id)
-            }
+        "_id": ObjectId(accessor_id),
+        f"patients.{owner_id}": {"$exists": True}
+    }
+
+    # Find the user document
+    result = user_collection.find_one(filter_query, {"_id": 1, f"patients.{owner_id}.shared_files": 1}, session=session)
+
+    if not result:
+        raise HTTPException(status_code=400, detail="User does not exist or user is not connected")
+
+    # Update the shared files array
+    shared_files = result["patients"][owner_id]["shared_files"]
+    updated_shared_files = [file for file in shared_files if file["file_id"] != file_id]
+
+    # Update the user's document
     update_query = {
-            "$pull":{
-                f"patients.{owner_id}.shared_files" : {
-                    "file_id": ObjectId(file_id)
-                    }
-                }
-            }
-    array_filters = [{"elem.file_id": ObjectId(file_id)}]
+        "$set": {
+            f"patients.{owner_id}.shared_files": updated_shared_files
+        }
+    }
+    user_collection.update_one(filter_query, update_query, session=session)
 
-    result = user_collection.update_one(filter_query, update_query, array_filters=array_filters,session=session)
+    # Remove the accessor_id from the file document's access list
+    file_collection.update_one({"_id": ObjectId(file_id)}, {"$pull": {"access_list": accessor_id}}, session=session)
 
-    if result.modified_count == 0:
-        raise Exception("Failed to update access")
-
-    # remove doctor id from file document
-    access_list = file.get("access_list", []) 
-    access_list.remove(accessor_id)
-
-    result = file_collection.update_one({"_id": ObjectId(file_id)}, {"$set": {"access_list": access_list}}, session=session)
-    
-    if result.modified_count == 0:
-        raise Exception("Failed to update access")
-    
     return
+
 
 def temp_file_share_callback(session,file_id,owner_id,accessor_id,access_type="r"):
     

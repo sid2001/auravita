@@ -9,8 +9,9 @@ ACCESS_KEY = os.getenv("AWS_ACCESS_KEY")
 SECRET_KEY = os.getenv("AWS_SECRET_KEY")
 REGION = os.getenv("AWS_REGION")
 BUCKET_NAME = os.getenv("AWS_BUCKET_NAME")
-AWS_SSE_KEY = base64.b64decode(os.getenv("AWS_SSE_KEY"))
+AWS_SSE_KEY = os.getenv("AWS_SSE_KEY")
 AWS_SSE_ALGORITHM = os.getenv("AWS_SSE_ALGORITHM")
+AWS_SSE_KEY_MD5 = os.getenv('AWS_SSE_KEY_MD5')
 
 class S3Client:
     def __init__(self,bucket_name=None):
@@ -41,8 +42,9 @@ class S3Client:
                     Bucket="auravita", 
                     Key=key,
                     SSECustomerKey=AWS_SSE_KEY,
-                    SSECustomerAlgorithm=AWS_SSE_ALGORITHM
-                    )
+                    SSECustomerAlgorithm=AWS_SSE_ALGORITHM,
+                    SSECustomerKeyMD5=AWS_SSE_KEY_MD5
+            )
             return None
         except NoCredentialsError:
             return "Credentials not available"
@@ -62,7 +64,8 @@ class S3Client:
                     Bucket=bucket_name, 
                     key=file_name, 
                     SSECustomerKey=AWS_SSE_KEY,
-                    SSECustomerAlgorithm=AWS_SSE_ALGORITHM
+                    SSECustomerAlgorithm=AWS_SSE_ALGORITHM,
+                    SSECustomerKeyMD5= AWS_SSE_KEY_MD5    
                     )
             return [response,None]
         except NoCredentialsError:
@@ -78,12 +81,15 @@ class S3Client:
         # file_name: name of the file
         # returns a presigned url
         try:
+            print("MD5: ",AWS_SSE_KEY_MD5)
             url = self.client.generate_presigned_url(
                 ClientMethod=client_method,
                 Params={
                     "Bucket": BUCKET_NAME,
                     "Key": object_key,
+                    "SSECustomerKey":AWS_SSE_KEY,
                     "SSECustomerAlgorithm": AWS_SSE_ALGORITHM,
+                    'SSECustomerKeyMD5': AWS_SSE_KEY_MD5
                 },
                 ExpiresIn=expiration
             )
