@@ -76,7 +76,10 @@ def accept_connection_request_callback(
     
     update_query_patient = {
             "$set":{
-                f"doctors.{doctor_id}": {}
+                f"doctors.{doctor_id}": {
+                "shared_files":[],
+                "other_data": {}
+            }
                 },
             "$inc":{
                     "doctors_count": 1,
@@ -86,7 +89,10 @@ def accept_connection_request_callback(
 
     update_query_doctor = {
             "$set":{
-                f"patients.{patient_id}": {}
+                f"patients.{patient_id}": {
+                "shared_files":[],
+                "other_data":{}
+            }
                 },
             "$inc":{
                     "patients_count": 1,

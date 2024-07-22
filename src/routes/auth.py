@@ -27,6 +27,9 @@ def verify_signin(transaction_id: str,data: Annotated[OtpVerificationRequest, Bo
             #content = ResponseModel(status="failed", message="Otp expired or invalid login attempt")
             return JSONResponse(content = {"detail":"OTP expired or invalid login attempt","status":"failed"}, status_code=status.HTTP_410_GONE)
         else:
+            phone = transaction["phone"]
+            if phone != f"+{data.country_code}{data.phone}":
+                return JSONResponse(content={"detail":"Invalid Request"},status_code=status.HTTP_400_BAD_REQUEST)
             stored_hashed_otp = transaction["otp"]
             if hashed_otp == stored_hashed_otp:
                 phone = f"+{data.country_code}{data.phone}"

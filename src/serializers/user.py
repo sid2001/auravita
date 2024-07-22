@@ -41,4 +41,4 @@ def user_data_serializer(data) -> dict:
     elif isinstance(data, int):
         return str(data)
     else: 
-        return data
+        return str(data)

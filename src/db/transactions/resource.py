@@ -16,44 +16,70 @@ def file_access_callback(
     user_collection = db["users"]
     file_collection = db["files"]
 
-    doctor = user_collection.find_one({"_id": ObjectId(accessor_id)}) # doctor
+    #doctor = user_collection.find_one({"_id": ObjectId(accessor_id)}) # doctor
     #patient = user_collection.find_one({"_id": ObjectId(owner_id)}) # patient
     file = file_collection.find_one({"_id": ObjectId(file_id)}) # file
 
-    if not doctor or not patient or not file:
+    if not file:
         raise HTTPException(status_code="400",detail="Invalid details or file not found")
     
     # add file to doctor's shared_files
     filter_query = {
             "_id": ObjectId(accessor_id),
-            f"patients.{owner_id}.shared_files.file_id": ObjectId(file_id)
+            f"patients.{owner_id}": {"$exists":True}
             }
-    update_query = {
+    
+    result = user_collection.find_one(filter_query,{"_id":1,f"patients.{owner_id}.shared_files":1},session=session);
+    
+    if(result is None or result == {}):
+       raise HTTPException(status_code="400",detail="User does not exists or user is not connected")
+    else:
+        print("result: ",result)
+        shared_files = result["patients"][owner_id]["shared_files"]
+        exists = False
+        for indx,file in enumerate(shared_files):
+            if(file["file_id"]==file_id):
+                exists = True
+                shared_files[indx]["access_type"] = access_type
+        if exists == False:
+            data = {
+                "access_type":access_type,
+                "file_id": file_id
+            }
+
+            shared_files.append(data)
+        update_query = {
             "$set": {
-                    f"patients.{owner_id}.shared_files.$[elem].access_type": access_type
-                },
-            "$addToSet":{
-                f"patients.{owner_id}.shared_files" : {
-                    "file_id": ObjectId(file_id),
-                    "access_type": access_type
-                    }
-                }
+                f"patients.{owner_id}.shared_files": shared_files
             }
-    array_filters = [{"elem.file_id": ObjectId(file_id)}]
+        }
+        user_collection.update_one(filter_query,update_query,session=session)
+    #update_query = {
+    #        "$set": {
+    #        f"patients.{owner_id}.shared_files.$[elem].access_type": access_type
+    #            },
+    #        "$addToSet":{
+    #            f"patients.{owner_id}.shared_files" : {
+    #                "file_id": ObjectId(file_id),
+    #                "access_type": access_type
+    #                }
+    #            }
+    #        }
+    #array_filters = [{"elem.file_id": ObjectId(file_id)}]
 
-    result = user_collection.update_one(filter_query, update_query, array_filters=array_filters,session=session)
+    #result = user_collection.update_one(filter_query, update_query, array_filters=array_filters,session=session)
 
-    if result.modified_count == 0:
-        raise Exception("Failed to update access")
+    #if result.modified_count == 0:
+    #    raise Exception("Failed to update access")
 
     # add doctor id to file document
     access_list = file.get("access_list", []) 
     access_list.append(accessor_id)
 
-    result = file_collection.update_one({"_id": ObjectId(file_id)}, {"$set": {"access_list": access_list}}, session=session)
+    file_collection.update_one({"_id": ObjectId(file_id)}, {"$set": {"access_list": access_list}}, session=session)
     
-    if result.modified_count == 0:
-        raise Exception("Failed to update access")
+   # if result.modified_count == 0:
+   #     raise Exception("Failed to update access")
     
     return
 
