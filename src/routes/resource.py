@@ -9,6 +9,7 @@ from utils.resource import  s3_object_key_generator
 from db.transactions.resource import upload_file_callback, file_access_callback, revoke_file_access_callback
 from services.aws_s3 import S3Client
 from enum import Enum
+from services.notification import Notification_service as Notify
 import traceback
 router = APIRouter()
 
@@ -75,8 +76,14 @@ async def upload_file(req: Request,tags: list[str] = Form(...) , file: UploadFil
 async def create_file_access(file_id:str, req:Request, p:str=Query(...),t:str = Query(default='r')):
     try:
         user_id = req.state.session["user_id"]
+        user_name = req.state.session["name"]
         with client.start_session() as session:
             session.with_transaction(lambda s: file_access_callback(session=s,file_id=file_id,owner_id=user_id,access_type=t,accessor_id=p))
+        
+        notify_data = f"{user_name} gave you file access!"
+        Notify.add_to_db(p,notify_data)
+        Notify.add_notification(p,notify_data)
+
         return JSONResponse(content={"detail":"File access granted"},status_code = 200)
     except Exception as e:
         print(f"Error: {traceback.format_exception(type(e), e, e.__traceback__)}")
@@ -102,11 +109,16 @@ def revoke_file_access(file_id:str, req:Request, p:str=Query(...)):
 async def temp_file_share(file_id:str, req:Request, p:str):
     try:
         user_id = req.state.session["user_id"]
+        user_name = req.state.session["name"]
         access_id = ''
         peer_id = p
         with client.start_session() as session:
             access_id = session.with_transaction(lambda s: temp_file_share_callback(s,file_id, user_id,peer_id))
-
+        
+        notify_data = f"{user_name} shared a file!"
+        result = Notify.add_to_db(p,data)
+        if(result not in None):
+            Notify.add_notification(p,result)
         return JSONResponse(content={"detail":"File access generated for 30 minutes","access_id":access_id},status_code = 200)
     except Exception as e:
         print(f"Error: {e}")

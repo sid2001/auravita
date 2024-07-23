@@ -2,6 +2,7 @@ from sse_starlette.sse import EventSourceResponse
 from db.connection import db, notifications_collection
 from dotenv import load_dotenv
 import os
+from db.connection import db
 from bson import ObjectId
 from datetime import datetime
 from models.other_models import Notification
@@ -27,10 +28,9 @@ class Notification_service:
     def get_notifications_from_db(self) -> None:
         try:
             notifications = notifications_collection.find({"subscriberId": self.subscriberId})
+            notfications = list(notfications)
             for notification in notifications:
-                notificationId = str(notification["_id"])
-                data = notification["data"]
-                payload = Notification(id=notificationId, data=data).dict()
+                payload = {"id":str(notification["_id"]),"data":notification["data"],"createdAt":notification["createdAt"]}
                 Notification_service.message_queue[self.subscriberId].put(payload)
         except Exception as e:
             print(f"Error while fetching notifications from db:", str(e))
@@ -58,6 +58,27 @@ class Notification_service:
         finally:        
             del Notification_service.message_queue[self.subscriberId]
     
-    @classmethod
-    def delete_notification_from_db(cls, notificationId: str):
+    @staticmethod
+    def delete_notification_from_db(notificationId: str):
         notifications_collection.delete_one({"_id": ObjectId(notificationId)})
+    
+    @staticmethod
+    def add_to_db(sub_id,data):
+        data = {
+            "_id": ObjectId(),
+            "subscriberId":sub_id,
+            "data": data,
+            "createdAt": datetime.utcnow()
+        }
+        try:
+            db["notifications"].insert_one(data)
+        except Exception as e:
+            print(f"Error while adding notification to db:", str(e))
+            return None
+        return {"createdAt":data["createdAt"],"data":data["data"],"id":data["_id"]}
+
+    @staticmethod
+    def add_notification(id:str,data:str | None = None):
+        if(id in Notification_service.message_queue and data is not None):
+            Notification_service.message_queue[id].put(data)
+
