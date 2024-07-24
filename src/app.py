@@ -33,7 +33,7 @@ sub_app.add_middleware(IsLoggedIn)
 
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(user_router, prefix="/user", tags=["user"])
-sub_app.include_router(protected_user_router, prefix="/user", tags=["user"])
+app.include_router(protected_user_router, prefix="/user", tags=["user"])
 #sub_app.include_router(resource_router, prefix="/resource", tags=["resource"])
 app.include_router(resource_router, prefix="/resource", tags=["resource"])
 

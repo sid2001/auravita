@@ -159,5 +159,3 @@ def get_file_url(req: Request,file_id:str,o:Enum(value='validator',names={'t':'1
         print(f"Error: {e}")
         return JSONResponse(content = {'detail': e.detail if hasattr(e,'detail') else "Internal server error"}, status_code = e.status_code if hasattr(e,'status_code') else status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
-

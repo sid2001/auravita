@@ -18,7 +18,7 @@ class Notification_service:
     def __init__(self, subscriberId: str):
         self.subscriberId = subscriberId
         #self.db_access_time = datetime.utcnow()
-        Notification_service.message_queue = {**Notification_service.message_queue, **{self.subscriberId: queue.Queue()}} 
+        Notification_service.message_queue = {**Notification_service.message_queue, **{self.subscriberId: queue.Queue(maxsize=0)}} 
         self.get_notifications_from_db()
         
         #Notification_service.subscribers[self.subscriberId] = "online"
@@ -27,10 +27,12 @@ class Notification_service:
 
     def get_notifications_from_db(self) -> None:
         try:
-            notifications = notifications_collection.find({"subscriberId": self.subscriberId})
-            notfications = list(notfications)
+            notifications = db["notifications"].find({"subscriberId": self.subscriberId})
+            notifications = list(notifications)
+            #print("Notifications from db: ",notifications)
             for notification in notifications:
                 payload = {"id":str(notification["_id"]),"data":notification["data"],"createdAt":notification["createdAt"]}
+               # print(f"Notification: {payload}\nfor {self.subscriberId}")
                 Notification_service.message_queue[self.subscriberId].put(payload)
         except Exception as e:
             print(f"Error while fetching notifications from db:", str(e))
@@ -43,11 +45,16 @@ class Notification_service:
 
     async def generator(self):
         try:
+            #print("Client connected")
             while True:
+                #print("Checking for new notifications")
                 if self.subscriber_status():
+                    #print(f"Notifications available for {self.subscriberId}")
+                    #print("Queue: ",Notification_service.message_queue[self.subscriberId].qsize())
                     while not Notification_service.message_queue[self.subscriberId].empty():
+                        #print(f"Sending notification to {self.subscriberId}")
                         data = Notification_service.message_queue[self.subscriberId].get()
-                        print(f"sending notification to {self.subscriberId} message: {data}")
+                        #print(f"sending notification to {self.subscriberId} message: {data}")
                         yield {"event": "notification", "data": data}  
                     await asyncio.sleep(int(os.getenv("NOTIFICATION_INTERVAL")))
         except asyncio.CancelledError:
