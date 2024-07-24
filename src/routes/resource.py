@@ -6,7 +6,7 @@ from bson import ObjectId
 from models.resource import UploadFileRequest, File as FileModel
 from serializers.resource import user_files_serializer
 from utils.resource import  s3_object_key_generator
-from db.transactions.resource import upload_file_callback, file_access_callback, revoke_file_access_callback
+from db.transactions.resource import upload_file_callback, file_access_callback, revoke_file_access_callback, temp_file_share_callback
 from services.aws_s3 import S3Client
 from enum import Enum
 from services.notification import Notification_service as Notify
@@ -37,9 +37,24 @@ async def get_file(req:Request,q:int | None=Query(default=1)):
         print(f"Error: {traceback.format_exception(type(e), e, e.__traceback__)}")
         return JSONResponse(content={"files": None, "error": e.__str__()}, status_code=e.status_code if hasattr(e, "status_code") else status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@router.get("/file/{file_id}")
-async def get_file():
-    user_id = req.state.session["user_id"]
+@router.get("/sharedFileURL/{access_id}")
+async def get_shared_file_url():
+    try:
+        user_id = req.state.session["user_id"]
+        access_token = db["temporarily_shared_files"].find_one({"_id":ObjectId(access_id)})
+        if access_token and str(access_token["accessor_id"]) == user_id:
+            object_key = access_token["object_key"]
+            s3 = S3Client()
+            file_url = s3.generate_presigned_url(object_key,'get_object',120)
+            return JSONResponse(content={"url":file_url,"detail":'File accessible for 2 minutes only'},status_code=200)
+        else:
+            raise HTTPException(status_code=400,detail="Invalid file access")
+    except Exception as e:
+        
+        print(f"Error: {traceback.format_exception(type(e), e, e.__traceback__)}")
+        
+        return JSONResponse(content = {'detail': e.detail if hasattr(e,'detail') else "Internal server error"}, status_code = e.status_code if hasattr(e,'status_code') else 500)
+
 
 @router.post("/uploadFile")
 async def upload_file(req: Request,tags: list[str] = Form(...) , file: UploadFile = File(...)):
@@ -106,14 +121,14 @@ def revoke_file_access(file_id:str, req:Request, p:str=Query(...)):
 
 
 @router.post("/tempFileShare/{file_id}")
-async def temp_file_share(file_id:str, req:Request, p:str):
+async def temp_file_share(file_id:str, req:Request, p:str = Query(...),t:str = Query(default='r')):
     try:
         user_id = req.state.session["user_id"]
         user_name = req.state.session["name"]
         access_id = ''
         peer_id = p
         with client.start_session() as session:
-            access_id = session.with_transaction(lambda s: temp_file_share_callback(s,file_id, user_id,peer_id))
+            access_id = session.with_transaction(lambda s: temp_file_share_callback(s,file_id, user_id,peer_id,t))
         
         notify_data = f"{user_name} shared a file!"
         result = Notify.add_to_db(p,data)
@@ -137,7 +152,7 @@ def get_file_url(req: Request,file_id:str,o:Enum(value='validator',names={'t':'1
             print("file_data: ",file_data)
             if file_data:
                 object_key = file_data["metadata"]["object_key"]
-                print("object key: ",object_key)
+                #print("object key: ",object_key)
                 s3 = S3Client()
                 file_url = s3.generate_presigned_url(object_key,'get_object',120)
                 return JSONResponse(content={"url":file_url,"detail":'File access granted for 2 minutes'},status_code=200)

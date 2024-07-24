@@ -34,7 +34,7 @@ class TemporarilySharedFile(BaseModel):
     access_type: str = "r"
     accessor_id: ObjectId
     created_at: str = dt.utcnow()
-    presigned_url: str
+    object_key: str
     
     class Config():
         arbitrary_types_allowed = True

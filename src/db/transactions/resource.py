@@ -141,32 +141,34 @@ def temp_file_share_callback(session,file_id,owner_id,accessor_id,access_type="r
     if not accessor:
         raise HTTPException(status_code=404,detail="Recepient user not found")
     
-    file = file_collection.find_one({"_id": ObjectId(file_id),owner_id:ObjectId(owner_id)},{"metadata":1})
+    file = file_collection.find_one({"_id": ObjectId(file_id),"owner_id":ObjectId(owner_id)},{"metadata":1},session=session)
     if not file:
         raise HTTPException(status_code=404,detail="File not found")
     
-    existing_access = temporarily_shared_files_collection.find_one({"file_id": ObjectId(file_id),"accessor_id": ObjectId(accessor_id)},{"_id":1})
+    existing_access = temporarily_shared_files_collection.find_one({"_id": ObjectId(file_id),"accessor_id": ObjectId(accessor_id)},{"_id":1})
     if existing_access:
         raise HTTPException(status_code=400,detail="File already shared")
     
-    s3_client = S3Client()
-    url_params = {
-            "object_key":file.metadata.object_key,
-            "client_method":"get_object",
-            "expiration": 1800 #add to constants later
-            }
+    #temporarily_shared_files_collection.insert_one()
+    #s3_client = S3Client()
+    #url_params = {
+     #       "object_key":file.metadata.object_key,
+     #       "client_method":"get_object",
+     #       "expiration": 1800 #add to constants later
+     #       }
 
-    [presigned_url,err] = s3_client.generate_presigned_url(**url_params)
+    #[presigned_url,err] = s3_client.generate_presigned_url(**url_params)
     
-    if err is not None:
-        raise HTTPException(status_code=500,detail=err)
-
+    #if err is not None:
+    #    raise HTTPException(status_code=500,detail=err)
+    id = ObjectId()
     temporary_shared_file = TemporarilySharedFile(
+            id = id,
             owner_id = ObjectId(owner_id),
             file_id = ObjectId(file_id),
             access_type = access_type,
-            accessor_id = accessor_id,
-            presigned_url = presigned_url
+            accessor_id = ObjectId(accessor_id),
+            object_key = file["metadata"]["object_key"]
             )
     temporary_shared_file = temporary_shared_file.dict(by_alias=True)
     result = temporarily_shared_files_collection.insert_one(temporary_shared_file,session=session)

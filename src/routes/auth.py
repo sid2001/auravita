@@ -82,7 +82,7 @@ async def login(credentials: SignInRequest, response : Response, request: Reques
                     otp = "1234"
                     message = f"Your OTP is {otp}. Valid for 5 minutes"
                     hashed_otp = hash_otp(otp)
-                    # await send_message(full_number, message)
+                    #send_message(full_number, message)
                     # expire otp after 5 minutes
                     # add created_at field to track when the otp was created in utc time
                     transaction_id =  otp_transactions_collection.insert_one({"phone": full_number, "otp": hashed_otp,"createdAt": datetime.utcnow()}).inserted_id
