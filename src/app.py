@@ -8,7 +8,7 @@ from middlewares.content_length_validator_middleware import ContentLengthValidat
 from routes.auth import router as auth_router
 from routes.resource import router as resource_router
 from routes.user import router as user_router
-from routes.user_secure import router as protected_user_router
+from routes.notification import router as notification_router
 import uvicorn
 import os
 from middlewares.auth import IsLoggedIn 
@@ -32,10 +32,10 @@ sub_app.add_middleware(ContentLengthValidatorMiddleware)
 sub_app.add_middleware(IsLoggedIn)
 
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
-app.include_router(user_router, prefix="/user", tags=["user"])
-app.include_router(protected_user_router, prefix="/user", tags=["user"])
+sub_app.include_router(user_router, prefix="/user", tags=["user"])
+sub_app.include_router(notification_router, prefix="/notification", tags=["user"])
 #sub_app.include_router(resource_router, prefix="/resource", tags=["resource"])
-app.include_router(resource_router, prefix="/resource", tags=["resource"])
+sub_app.include_router(resource_router, prefix="/resource", tags=["resource"])
 
 
 
