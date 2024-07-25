@@ -47,6 +47,7 @@ def verify_signin(transaction_id: str,data: Annotated[OtpVerificationRequest, Bo
                     "user_type": user["user_type"],
                     "name": user["name"],
                     "user_id": str(user["_id"]),
+                    "createdAt": datetime.utcnow()
                 }
                 user_data = user_data_serializer(user) 
                 print("userdata:",user)

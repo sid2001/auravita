@@ -33,7 +33,7 @@ class TemporarilySharedFile(BaseModel):
     file_id: ObjectId
     access_type: str = "r"
     accessor_id: ObjectId
-    created_at: str = dt.utcnow()
+    createdAt: dt = dt.utcnow()
     object_key: str
     
     class Config():

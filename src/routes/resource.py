@@ -38,7 +38,7 @@ async def get_file(req:Request,q:int | None=Query(default=1)):
         return JSONResponse(content={"files": None, "error": e.__str__()}, status_code=e.status_code if hasattr(e, "status_code") else status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @router.get("/sharedFileURL/{access_id}")
-async def get_shared_file_url():
+async def get_shared_file_url(access_id:str,req:Request):
     try:
         user_id = req.state.session["user_id"]
         access_token = db["temporarily_shared_files"].find_one({"_id":ObjectId(access_id)})
@@ -131,8 +131,8 @@ async def temp_file_share(file_id:str, req:Request, p:str = Query(...),t:str = Q
             access_id = session.with_transaction(lambda s: temp_file_share_callback(s,file_id, user_id,peer_id,t))
         
         notify_data = f"{user_name} shared a file!"
-        result = Notify.add_to_db(p,data)
-        if(result not in None):
+        result = Notify.add_to_db(p,notify_data)
+        if(result is not None):
             Notify.add_notification(p,result)
         return JSONResponse(content={"detail":"File access generated for 30 minutes","access_id":access_id},status_code = 200)
     except Exception as e:

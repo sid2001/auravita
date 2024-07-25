@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, status, Response, Request, Body, HTTPException
 from fastapi.responses import JSONResponse
 from serializers.user import user_session_serializer, user_data_serializer
+from serializers.resource import response_serializer
 from db.connection import db, client
 from db.transactions.user import  connection_request_callback, accept_connection_request_callback, reject_connection_request_callback, delete_connection_callback 
 from bson import ObjectId
-from typing import Optional
+from typing import Optional, Annotated
 import traceback
 
 router = APIRouter()
@@ -17,20 +18,32 @@ def get_session_details(request: Request):
     
     return JSONResponse(content=session_data)
 
-@router.post("/updateProfile")
-def update_profile(request: Request, data: dict = Body(...)):
-    print(f"Data: {data}")
-    return JSONResponse(content={"error": None}, status_code=200)
+#@router.post("/updateProfile")
+#def update_profile(request: Request, data: dict = Body(...)):
+#    print(f"Data: {data}")
+#    return JSONResponse(content={"error": None}, status_code=200)
 
 @router.post("/deleteProfile")
-
+def delete_profile(req:Request):
+    try:
+        user_id = req.state.session["user_id"]
+        user_collection = db["users"]
+        with client.start_session() as session:
+            with session.start_transaction():
+                user_collection.delete_one({"_id": ObjectId(user_id)},session=session)
+                db["delete_users"].insert_one({"_id":ObjectId(user_id)},session=session)
+    except Exception as e:
+        print(f"Error: {e}")
+        return JSONResponse(content={"detail": "Internal Server Error"}, status_code=500)
 
 @router.post("/connectionRequest/{doctor_id}")
-def send_connection_request(doctor_id: str,request:Request, additional_note: Optional[str] = Body(default=None,alias="additional_note",max_length=200)):
+def send_connection_request(doctor_id: str,request:Request, additional_note: Annotated[str | None,Body(max_length=200)]=None, null: str = Body(None)):
     try:
+        if(request.state.session["user_type"] != "patient"):
+            raise HTTPException(detail = "Invalid request", status_code=400)
         with client.start_session() as session:
-            patient_id = request.state.session["user_id"]
-            session.with_transaction(lambda s: connection_request_callback(s, doctor_id, patient_id, additional_note))
+            patient_detail = request.state.session
+            session.with_transaction(lambda s: connection_request_callback(s, doctor_id, patient_detail, additional_note))
         return JSONResponse(content={"detail": "Connection request sent"}, status_code=200)
     except Exception as e:
         print(f"Error: {e}")
@@ -78,8 +91,47 @@ def reject_connection_request(request_id: str, request:Request):
 
 
 
-@router.get("/getDoctorDetails/{doctor_id}")
+#@router.get("/getDoctorDetails/{doctor_id}")
+@router.get("/getConnectionRequests")
+def get_connection_requests(req:Request):
+    try:
+        user_id = req.state.session["user_id"]
+        user_type = req.state.session["user_type"]
+        if(user_type=="doctor"):
+            connection_requests = db["connection_requests"].find({"doctor_id": ObjectId(user_id)},{"_id":1,"metadata.patient_name":1,"patient_id":1,"metadata.additional_note":1})
+            connection_requests = list(connection_requests)
+            connection_requests = response_serializer(connection_requests)
+            return JSONResponse(content={"connection_requests": connection_requests}, status_code=200)
+        elif(user_type=="patient"):
+            connection_requests = db["connection_requests"].find({"patient_id": ObjectId(user_id)},{"_id:":1,"metadata.doctor_name":1,"doctor_id":1,"metadata.additional_note":1})
+            connection_requests = list(connection_requests)
+            connection_requests = response_serializer(connection_requests)
+            return JSONResponse(content={"connection_requests": connection_requests}, status_code=200)
+        else:
+            raise HTTPException(detail="Invalid request", status_code=400)
+    except Exception as e:
+        print(f"Error: {e}")
+        default_status_code = 500
+        default_error_detail = "Internal Server Error"
+        return JSONResponse(content = {'detail': e.detail if hasattr(e, 'detail') else default_error_detail}, status_code = e.status_code if hasattr(e, 'status_code') else default_status_code)
 
+
+@router.post("/deletePendingRequest/{request_id}")
+def delete_pending_request(request_id: str,req:Request):
+    try:
+        user_id = req.state.session["user_id"]
+        user_type = req.state.session["user_type"]
+        if user_type != "patient":
+            raise HTTPException(detail="Invalid request", status_code=400)
+        else:
+            with client.start_session() as session:
+                session.with_transaction(lambda s: reject_connection_request_callback(s, request_id))
+        return JSONResponse(content={"detail": "Request deleted"}, status_code=200)
+    except Exception as e:
+        print(f"Error: {e}")
+        default_status_code = 500
+        default_error_detail = "Internal Server Error"
+        return JSONResponse(content = {'detail': e.detail if hasattr(e, 'detail') else default_error_detail}, status_code = e.status_code if hasattr(e, 'status_code') else default_status_code)
 
 @router.post("/deleteConnection/{peer_id}")
 def delete_connection(peer_id: str,request:Request):

@@ -145,7 +145,8 @@ def temp_file_share_callback(session,file_id,owner_id,accessor_id,access_type="r
     if not file:
         raise HTTPException(status_code=404,detail="File not found")
     
-    existing_access = temporarily_shared_files_collection.find_one({"_id": ObjectId(file_id),"accessor_id": ObjectId(accessor_id)},{"_id":1})
+    existing_access = temporarily_shared_files_collection.find_one({"file_id": ObjectId(file_id),"accessor_id": ObjectId(accessor_id)},{"_id":1},session=session)
+    print("existing access: ",existing_access)
     if existing_access:
         raise HTTPException(status_code=400,detail="File already shared")
     
@@ -176,7 +177,7 @@ def temp_file_share_callback(session,file_id,owner_id,accessor_id,access_type="r
     if not result:
         raise HTTPException(status_code=500,detail="Internal server error")
     
-    return
+    return str(id   )
     
 
 async def upload_file_callback(

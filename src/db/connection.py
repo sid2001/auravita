@@ -39,5 +39,7 @@ temporarily_shared_files_collection = db["temporarily_shared_files"]
 # after 30 minutes, the document will be automatically deleted
 temporarily_shared_files_collection.create_index([("createdAt", pymongo.ASCENDING)], expireAfterSeconds=1800)
 
+db["sessions"].create_index([("createdAt", pymongo.ASCENDING)], expireAfterSeconds=3600)
+
 notifications_collection = db["notifications"]
 notifications_collection.create_index([("subscriberId", pymongo.ASCENDING)])
