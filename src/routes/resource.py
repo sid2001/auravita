@@ -142,6 +142,30 @@ async def temp_file_share(file_id:str, req:Request, p:str = Query(...),t:str = Q
         
         return JSONResponse(content = {'detail': e.detail if hasattr(e,'detail') else "Internal server error"}, status_code = e.status_code if hasattr(e,'status_code') else 500)
 
+@router.get("/patientFileData/{patient_id}")
+def get_patient_file_data(req:Request, patient_id:str):
+    try:
+        user_id = req.state.session["user_id"]
+        user_type = req.state.session["user_type"]
+        if(user_type != "doctor"):
+            raise HTTPException(detail="Invalid request", status_code = 400)
+        
+        user_collection = db["users"]
+        query = {
+            "owner_id": ObjectId(patient_id),
+            "access_list" : user_id
+        }
+        files = db["files"].find(query,{"metadata":1})
+    
+        files = list(files)
+        files = user_files_serializer(files)
+        return JSONResponse(content={"files": files}, status_code=200)
+    except Exception as e:
+        print(f"Error: {e}")
+        
+        return JSONResponse(content = {'detail': e.detail if hasattr(e,'detail') else "Internal server error"}, status_code = e.status_code if hasattr(e,'status_code') else 500)
+
+
 @router.get("/fileURL/{file_id}")
 def get_file_url(req: Request,file_id:str,o:Enum(value='validator',names={'t':'1','f':'0'}) = Query(...)):
     try:
