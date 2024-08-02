@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Request, FastAPI
+from fastapi.responses import JSONResponse
 from sse_starlette.sse import EventSourceResponse
 from services.notification import Notification_service 
 from db.connection import db
+from bson import ObjectId
 router = APIRouter()
 
 @router.get("/notify")
@@ -16,7 +18,10 @@ async def notify(request: Request):
 def read_notification(notification_id:str, req:Request):
     try:
         user_id = req.state.session["user_id"]
-        db["notifications"].delete_one({"id":ObjectId(notification_id),"subscriberId":user_id})
+        result = db["notifications"].delete_one({"_id":ObjectId(notification_id),"subscriberId":user_id})
+        print(f"result: {result}")
+        print(f"Deleted count: {result.deleted_count}")
+        print(f"user_id: {user_id}")
         return JSONResponse(status_code=200, content={"message": "Notification read successfully"})
     except Exception as e:
         print(f"error: ", (e))

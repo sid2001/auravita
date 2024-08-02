@@ -17,16 +17,17 @@ load_dotenv()
 
 sub_app = FastAPI()
 app = FastAPI(title="Mediaura Rest API", version="0.1.0")
-app.mount("/protected", sub_app)
+
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=["http://localhost:5500","http://127.0.0.1:5500","http://localhost:5173","http://127.0.0.1:5173","http://localhost:8080","http://127.0.0.1:8080","http://localhost"],
+    allow_credentials="true",
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+app.mount("/protected", sub_app)
 app.add_middleware(SessionHandler)
 sub_app.add_middleware(ContentLengthValidatorMiddleware)
 sub_app.add_middleware(IsLoggedIn)

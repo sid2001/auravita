@@ -62,7 +62,9 @@ async def upload_file(req: Request,tags: list[str] = Form(...) , file: UploadFil
     try:
 
         user_id = req.state.session["user_id"]
-         
+        user_type = req.state.session["user_type"]
+        if(user_type != "patient"):
+            raise HTTPException(detail="Invalid request", status_code = 400)
         file_data = {
                     "file_name": file.filename,
                     "content_type": file.content_type,

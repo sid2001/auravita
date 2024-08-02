@@ -13,10 +13,10 @@ default_cookie_config = {
     "max_age": 3600,
     "expires": (datetime.utcnow() + timedelta(hours = 1)).strftime('%a, %d %b %Y %H:%M:%S GMT'),
     "path": "/",
-    "domain": None,
+    #"domain": None,
     "secure": False,
-    "httponly": True,
-    "samesite": "lax",
+    #"httponly": True,
+    "samesite": "None",
 }    
 
 def save_session(session: dict) -> str:
@@ -56,12 +56,23 @@ class SessionHandler(BaseHTTPMiddleware):
             print(f"Before request: {request.state.session}\n")
             response = await call_next(request)
             print(f"After request: {request.state.session}\n")
-            
+                    
             if current_session != request.state.session:
+                max_age = 3600
+                expires = (datetime.utcnow() + timedelta(hours=1)).strftime('%a, %d %b %Y %H:%M:%S GMT')
                 print(f"Session changed\n")
                 session_id = encrypt(save_session(request.state.session))
                 config = self.config or default_cookie_config
-                response.set_cookie(key = "session_id",value = session_id, **config)
+                response.set_cookie(
+                    key = "session_id",
+                    value = session_id, 
+                    max_age=max_age,
+                    expires=expires,
+                    path="/",
+                    secure=False,  
+                    httponly=True,    
+                    samesite="lax"
+                )
 
             return response
         except Exception as e:

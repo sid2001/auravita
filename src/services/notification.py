@@ -46,6 +46,8 @@ class Notification_service:
     async def generator(self):
         try:
             #print("Client connected")
+            await asyncio.sleep(1) # wait for the client to connect before sending notifications
+            # somehow this fixed the issue of not sending notifications to the client when client reconnects and data is sent in bunch simultaneously
             while True:
                 #print("Checking for new notifications")
                 if self.subscriber_status():
@@ -55,14 +57,15 @@ class Notification_service:
                         #print(f"Sending notification to {self.subscriberId}")
                         data = Notification_service.message_queue[self.subscriberId].get()
                         #print(f"sending notification to {self.subscriberId} message: {data}")
-                        yield {"event": "notification", "data": data}  
-                    await asyncio.sleep(int(os.getenv("NOTIFICATION_INTERVAL")))
+                        yield {"event": "notification", "data": f"{data} \n"}  
+                await asyncio.sleep(int(os.getenv("NOTIFICATION_INTERVAL")))
         except asyncio.CancelledError:
             if(Notification_service.message_queue[self.subscriberId].empty()):
                 print("Client disconnected")
             else:
                 print("Client disconnected with pending messages")
-        finally:        
+        finally:
+            #print(f"Removing {self.subscriberId} from message queue")
             del Notification_service.message_queue[self.subscriberId]
     
     @staticmethod
