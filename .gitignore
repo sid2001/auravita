@@ -8,3 +8,6 @@ __pycache__
 
 sorted_docs
 nohup.out
+dist/
+pyproject.toml
+auravita.egg-info

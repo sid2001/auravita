@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, Response, Request, Body, HTTPException
+from fastapi import APIRouter, Depends,Query, status, Response, Request, Body, HTTPException
 from fastapi.responses import JSONResponse
 from serializers.user import user_session_serializer, user_data_serializer
 from serializers.resource import response_serializer
@@ -154,8 +154,8 @@ def delete_connection(peer_id: str,request:Request):
 
 
 
-@router.get("/searchDoctorByName/{doctor_name}")
-def search_doctor_by_name(doctor_name: str,request: Request, p : int = 1 ):
+@router.get("/searchDoctorByName")
+def search_doctor_by_name(request: Request, p : int = 1, doctor_name: str = Query(...)):
     try:
         page = p;
         user_collection = db["users"]
@@ -188,8 +188,8 @@ def search_doctor_by_name(doctor_name: str,request: Request, p : int = 1 ):
         return JSONResponse(content = {'detail': e.detail if hasattr(e, 'detail') else default_error_detail}, status_code = e.status_code if hasattr(e, 'status_code') else default_status_code)
 
 
-@router.get("/searchDoctorByNumber/{doctor_number}")
-def search_doctor_by_number(doctor_number: int,request: Request, p : int = 1):
+@router.get("/searchDoctorByNumber")
+def search_doctor_by_number(request: Request, p : int = 1,doctor_number: str = Query(...)):
     try:
         user_collection = db["users"]
         user_type = request.state.session["user_type"]
