@@ -5,7 +5,7 @@ venv
 __pycache__
 *.swp
 *.swo
-
+env/
 sorted_docs
 nohup.out
 dist/
