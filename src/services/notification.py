@@ -57,7 +57,7 @@ class Notification_service:
                         #print(f"Sending notification to {self.subscriberId}")
                         data = Notification_service.message_queue[self.subscriberId].get()
                         #print(f"sending notification to {self.subscriberId} message: {data}")
-                        yield {"event": "notification", "data": f"{data} \n"}  
+                        yield {"event": "notification", "data": f"{data} \n\n"}  
                 await asyncio.sleep(int(os.getenv("NOTIFICATION_INTERVAL")))
         except asyncio.CancelledError:
             if(Notification_service.message_queue[self.subscriberId].empty()):

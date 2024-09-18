@@ -12,7 +12,7 @@ async def notify(request: Request):
     print(f"Subscriber id: {subscriber_id}")
     notify_instance = Notification_service(subscriber_id)
 
-    return EventSourceResponse(notify_instance.generator())
+    return EventSourceResponse(notify_instance.generator(),media_type="text/event-stream")
 
 @router.post("/readNotification/{notification_id}")
 def read_notification(notification_id:str, req:Request):
