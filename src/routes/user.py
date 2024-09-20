@@ -23,6 +23,8 @@ def get_session_details(request: Request):
 #    print(f"Data: {data}")
 #    return JSONResponse(content={"error": None}, status_code=200)
 
+#the delete profile only deletes user from the db but the files still persists
+#implement scheduling to delete all user related data
 @router.post("/deleteProfile")
 def delete_profile(req:Request):
     try:

@@ -41,9 +41,9 @@ class S3Client:
                     Body=content,
                     Bucket="auravita", 
                     Key=key,
-                    SSECustomerKey=AWS_SSE_KEY,
-                    SSECustomerAlgorithm=AWS_SSE_ALGORITHM,
-                    SSECustomerKeyMD5=AWS_SSE_KEY_MD5
+                    #SSECustomerKey=AWS_SSE_KEY,
+                    #SSECustomerAlgorithm=AWS_SSE_ALGORITHM,
+                    #SSECustomerKeyMD5=AWS_SSE_KEY_MD5
             )
             return None
         except NoCredentialsError:
@@ -63,9 +63,9 @@ class S3Client:
             response = self.client.get_object(
                     Bucket=bucket_name, 
                     key=file_name, 
-                    SSECustomerKey=AWS_SSE_KEY,
-                    SSECustomerAlgorithm=AWS_SSE_ALGORITHM,
-                    SSECustomerKeyMD5= AWS_SSE_KEY_MD5    
+                    #SSECustomerKey=AWS_SSE_KEY,
+                    #SSECustomerAlgorithm=AWS_SSE_ALGORITHM,
+                    #SSECustomerKeyMD5= AWS_SSE_KEY_MD5    
                     )
             return [response,None]
         except NoCredentialsError:
@@ -75,21 +75,44 @@ class S3Client:
             print("Partial credentials available")
             return [None, "Partial credentials available"]
 
+    ##uncomment this section when delete file mechanism is added.
+    #def delete_object(self, file_name: str, bucket_name: str = None):
+    #    # file_name: name of the file
+    #    # bucket_name: name of the bucket
+    #    # returns the file object
+    #    try:
+    #        if bucket_name is None:
+    #        bucket_name = self.bucket_name
+    #        response = self.client.delete_object(
+    #            Bucket=bucket_name, 
+    #            key=file_name, 
+    #            SSECustomerKey=AWS_SSE_KEY,
+    #            SSECustomerAlgorithm=AWS_SSE_ALGORITHM,
+    #            SSECustomerKeyMD5= AWS_SSE_KEY_MD5    
+    #            )
+    #        return [response,None]
+    #    except NoCredentialsError:
+    #        print("Credentials not available")
+    #        return [None,"Credentials not available"]
+    #    except PartialCredentialsError:
+    #        print("Partial credentials available")
+    #        return [None, "Partial credentials available"]
+
     def generate_presigned_url(self, object_key: str, client_method: str, expiration: int) -> str :
         # client_method: "get_object" or "put_object"
         # expiration: time in seconds
         # file_name: name of the file
         # returns a presigned url
         try:
-            print("MD5: ",AWS_SSE_KEY_MD5)
+            #print("MD5: ",AWS_SSE_KEY_MD5)
             url = self.client.generate_presigned_url(
                 ClientMethod=client_method,
                 Params={
                     "Bucket": BUCKET_NAME,
                     "Key": object_key,
-                    "SSECustomerKey":AWS_SSE_KEY,
-                    "SSECustomerAlgorithm": AWS_SSE_ALGORITHM,
-                    'SSECustomerKeyMD5': AWS_SSE_KEY_MD5
+                    #"SSECustomerKey":AWS_SSE_KEY,
+                    #"SSECustomerAlgorithm": AWS_SSE_ALGORITHM,
+                    #'SSECustomerKeyMD5': AWS_SSE_KEY_MD5
                 },
                 ExpiresIn=expiration
             )
