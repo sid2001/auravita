@@ -1,3 +1,115 @@
+# High level design
+```mermaid
+---
+config:
+  layout: dagre
+  theme: dark
+---
+flowchart TD
+    %% User Layer
+    USER[👤 Users]
+    
+    %% Client Layer
+    subgraph client["🌐 Client Layer"]
+        WEB["📱 Web/Mobile Client<br/>React/Flutter"]
+        DNS["🌍 DNS Resolution"]
+    end
+    
+    %% Edge Layer
+    subgraph edge["⚡ Edge Layer"]
+        CDN["🚀 AWS CloudFront<br/>• Static Assets<br/>• Global Distribution"]
+    end
+    
+    %% Application Layer
+    subgraph app["🏗️ Application Layer"]
+        direction TB
+        
+        subgraph api["FastAPI Server"]
+            NGINX["⚖️ Nginx Reverse Proxy<br/>• SSL Termination<br/>• Rate Limiting<br/>• Request Routing"]
+            
+            MIDDLEWARE["🛡️ Middleware Pipeline<br/>• Authentication<br/>• CORS<br/>• Request Validation"]
+            
+            subgraph services["Core Services"]
+                AUTH["🔐 Auth Service<br/>• JWT Tokens<br/>• OTP Verification<br/>• Session Management"]
+                USER_SVC["👥 User Service<br/>• Profile Management<br/>• Preferences"]
+                FILE_SVC["📁 File Service<br/>• Upload/Download<br/>• S3 Integration"]
+                NOTIF["🔔 Notification Service<br/>• Real-time SSE<br/>"]
+            end
+            
+            ROUTERS["🛣️ API Routes<br/>• RESTful Endpoints<br/>• OpenAPI Docs"]
+        end
+    end
+    
+    %% Data Layer
+    subgraph data["💾 Data Layer"]
+        MONGO[("🍃 MongoDB<br/>Primary Database<br/>• Users & Profiles<br/>• Sessions<br/>• Notifications<br/>• File Metadata")]
+        
+        S3[("☁️ AWS S3<br/>Object Storage<br/>• User Files<br/>• Generated Reports<br/>• Media Assets")]
+    end
+    
+    %% External Services
+    subgraph external["🌍 External Services"]
+        TWILIO["📱 Twilio<br/>SMS Gateway<br/>• OTP Delivery<br/>• Notifications"]
+        
+      %%   EMAIL["📧 Email Service<br/>SendGrid/SES<br/>• Transactional Emails<br/>• Notifications"]
+    end
+    
+    %% Monitoring & DevOps
+    %% (Removed as requested)
+
+    %% User Flow
+    USER --> WEB
+    USER --> DNS
+    
+    %% Client to Edge
+    WEB --> CDN
+    WEB --> NGINX
+    DNS --> NGINX
+    
+    %% Edge to Application
+    CDN -.->|Static Assets| S3
+    CDN --> NGINX
+    NGINX --> MIDDLEWARE
+    
+    %% Application Flow
+    MIDDLEWARE --> ROUTERS
+    ROUTERS --> AUTH
+    ROUTERS --> USER_SVC
+    ROUTERS --> FILE_SVC
+    ROUTERS --> NOTIF
+    
+    %% Service to Data
+    AUTH --> MONGO
+    USER_SVC --> MONGO
+    FILE_SVC --> S3
+    FILE_SVC --> MONGO
+    NOTIF --> MONGO
+    
+    %% External Integrations
+    AUTH --> TWILIO
+%%     NOTIF --> EMAIL
+    
+    %% Enhanced Styling
+    classDef userStyle fill:#E1F5FE,stroke:#0277BD,stroke-width:3px,color:#01579B
+    classDef clientStyle fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px,color:#4A148C
+    classDef edgeStyle fill:#E8F5E8,stroke:#2E7D32,stroke-width:2px,color:#1B5E20
+    classDef appStyle fill:#FFF3E0,stroke:#F57C00,stroke-width:2px,color:#E65100
+    classDef serviceStyle fill:#E3F2FD,stroke:#1976D2,stroke-width:2px,color:#0D47A1
+    classDef dataStyle fill:#E8F5E8,stroke:#388E3C,stroke-width:3px,color:#1B5E20
+    classDef externalStyle fill:#FCE4EC,stroke:#C2185B,stroke-width:2px,color:#880E4F
+    classDef containerStyle fill:#263238,stroke:#37474F,stroke-width:2px,color:#ECEFF1
+    
+    class USER userStyle
+    class WEB,DNS clientStyle
+    class CDN edgeStyle
+    class NGINX,MIDDLEWARE,ROUTERS appStyle
+    class AUTH,USER_SVC,FILE_SVC,NOTIF serviceStyle
+    class MONGO,S3 dataStyle
+    class TWILIO,EMAIL externalStyle
+    class client,edge,app,api,services,data,external containerStyle
+```
+---
+
 # Database design
 ```mermaid
 erDiagram
@@ -55,116 +167,47 @@ erDiagram
     FILES ||--o{ TEMPORARILY_SHARED_FILES : "shared as"
 
 ```
+# Design decisions
+### Initial architectural decisions and why FastAPI
+> The core architecture is a stateless RESTful API. To manage user state, I implemented a server-side session management system instead of using client-side JWTs. While JWTs are popular, they cannot be easily revoked before their expiration. In a medical application, the ability to immediately terminate a user's session from the server
+> 
+> #### **I chose FastAPI because**
+> - **Performance:** Its asynchronous nature, built on [ASGI](https://asgi.readthedocs.io/en/latest/), offered significant performance advantages over traditional frameworks like Flask, ensuring a responsive user experience.
+> - **Data Integrity:** FastAPI's native integration with Pydantic for data validation was critical. For a medical platform, enforcing strict data schemas at the API boundary is essential to maintain the integrity of patient and medical data.
+> - **Developer Experience:** The automatic generation of interactive API documentation (Swagger UI) streamlined development and testing, which was a huge benefit for building the API from the ground up.
 
-```mermaid
----
-config:
-  layout: dagre
-  theme: dark
----
-flowchart TD
-    %% User Layer
-    USER[👤 Users]
-    
-    %% Client Layer
-    subgraph client["🌐 Client Layer"]
-        WEB["📱 Web/Mobile Client<br/>React/Flutter"]
-        DNS["🌍 DNS Resolution"]
-    end
-    
-    %% Edge Layer
-    subgraph edge["⚡ Edge Layer"]
-        CDN["🚀 AWS CloudFront<br/>• Static Assets<br/>• Global Distribution"]
-    end
-    
-    %% Application Layer
-    subgraph app["🏗️ Application Layer"]
-        direction TB
-        
-        subgraph api["FastAPI Server"]
-            NGINX["⚖️ Nginx Reverse Proxy<br/>• SSL Termination<br/>• Rate Limiting<br/>• Request Routing"]
-            
-            MIDDLEWARE["🛡️ Middleware Pipeline<br/>• Authentication<br/>• CORS<br/>• Request Validation"]
-            
-            subgraph services["Core Services"]
-                AUTH["🔐 Auth Service<br/>• JWT Tokens<br/>• OTP Verification<br/>• Session Management"]
-                USER_SVC["👥 User Service<br/>• Profile Management<br/>• Preferences"]
-                FILE_SVC["📁 File Service<br/>• Upload/Download<br/>• S3 Integration"]
-                NOTIF["🔔 Notification Service<br/>• Real-time SSE<br/>"]
-            end
-            
-            ROUTERS["🛣️ API Routes<br/>• RESTful Endpoints<br/>• OpenAPI Docs"]
-        end
-    end
-    
-    %% Data Layer
-    subgraph data["💾 Data Layer"]
-        MONGO[("🍃 MongoDB<br/>Primary Database<br/>• Users & Profiles<br/>• Sessions<br/>• Notifications<br/>• File Metadata")]
-        
-        S3[("☁️ AWS S3<br/>Object Storage<br/>• User Files<br/>• Generated Reports<br/>• Media Assets")]
-    end
-    
-    %% External Services
-    subgraph external["🌍 External Services"]
-        TWILIO["📱 Twilio<br/>SMS Gateway<br/>• OTP Delivery<br/>• Notifications"]
-        
-        EMAIL["📧 Email Service<br/>SendGrid/SES<br/>• Transactional Emails<br/>• Notifications"]
-    end
-    
-    %% Monitoring & DevOps
-    %% (Removed as requested)
+### Why custom session handler
+> This has a slightly humorous side to it as to why did I write a session handler when plenty of libraries already exist?
+> - I needed a simple handler and felt it was more reasonable to write my own than to add more dependencies. Being new to Python development, I wasn’t sure which library to use, and after analyzing the complexity, I found it easier to write my own than to go through the documentation of a third-party library.
+> - I was also very clear about my requirements, and since I understood how middleware works, implementing myself wasn't too hard.
 
-    %% User Flow
-    USER --> WEB
-    USER --> DNS
-    
-    %% Client to Edge
-    WEB --> CDN
-    WEB --> NGINX
-    DNS --> NGINX
-    
-    %% Edge to Application
-    CDN -.->|Static Assets| S3
-    CDN --> NGINX
-    NGINX --> MIDDLEWARE
-    
-    %% Application Flow
-    MIDDLEWARE --> ROUTERS
-    ROUTERS --> AUTH
-    ROUTERS --> USER_SVC
-    ROUTERS --> FILE_SVC
-    ROUTERS --> NOTIF
-    
-    %% Service to Data
-    AUTH --> MONGO
-    USER_SVC --> MONGO
-    FILE_SVC --> S3
-    FILE_SVC --> MONGO
-    NOTIF --> MONGO
-    
-    %% External Integrations
-    AUTH --> TWILIO
-    NOTIF --> EMAIL
-    
-    %% Enhanced Styling
-    classDef userStyle fill:#E1F5FE,stroke:#0277BD,stroke-width:3px,color:#01579B
-    classDef clientStyle fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px,color:#4A148C
-    classDef edgeStyle fill:#E8F5E8,stroke:#2E7D32,stroke-width:2px,color:#1B5E20
-    classDef appStyle fill:#FFF3E0,stroke:#F57C00,stroke-width:2px,color:#E65100
-    classDef serviceStyle fill:#E3F2FD,stroke:#1976D2,stroke-width:2px,color:#0D47A1
-    classDef dataStyle fill:#E8F5E8,stroke:#388E3C,stroke-width:3px,color:#1B5E20
-    classDef externalStyle fill:#FCE4EC,stroke:#C2185B,stroke-width:2px,color:#880E4F
-    classDef containerStyle fill:#263238,stroke:#37474F,stroke-width:2px,color:#ECEFF1
-    
-    class USER userStyle
-    class WEB,DNS clientStyle
-    class CDN edgeStyle
-    class NGINX,MIDDLEWARE,ROUTERS appStyle
-    class AUTH,USER_SVC,FILE_SVC,NOTIF serviceStyle
-    class MONGO,S3 dataStyle
-    class TWILIO,EMAIL externalStyle
-    class client,edge,app,api,services,data,external containerStyle
-```
+### Role based access-control and limited access
+> Sharing medical resource was the core purpose of this project. Having a role-based system to share resources was perfect to grant limited access to files.
+> 
+> For example a patient could grant file read access to the doctor he/she is seeing. They could even set period of time the file can be accessed.
+> 
+> For this purpose I used S3 pre-signed URLs with expiration period.
+> 
+> There were bascially two types of access to be shared a temporary access and a permanent access. Both files were accessed through signed urls. For temporary the new urls won't get generated after it's expiration.
+
+### Rate limit Twilio requests
+> So Twilio was one of the most expensive service but reliable too. To ensure user couldn't spam OTP request a cooldown period was introduced to rate-limit the requests.
+
+### Using Server-Sent Events
+> So WebSockets were also an option for sending notifications. Since the rquirement was to only send messages, a simplex connection like SSE was a better choice.
+
+### Using NGINX for reverse proxy
+> I had experience with NGINX so it became my first choice to use while configuring a reverse proxy.
+> 
+> **What it does**
+> - SSL termination: All the https requests were handled at this layer and converted to HTTP for the servers. It provided a central point to verify requests which made scaling and adding multiple servers easier by avoiding multiple certificates for different servers.
+> - Rate-Limitting
+> 
+> At present a single server is enough to cater the users but when multiple servers were deployed an optimisation to the reverse proxy could improve session connectivity by implementing [sticky sessions](https://www.imperva.com/learn/availability/sticky-session-persistence-and-cookies/).
+
+### Why MongoDB
+> Simple answer: Flexible(good for document based data), schema-less design and scalable.
+
 # 🚀 Auravita API Documentation
 
 > **FastAPI-powered healthcare platform API** with secure authentication, user management, and real-time notifications.
@@ -302,20 +345,3 @@ All API responses follow a consistent JSON structure with success status, data p
 Error responses include success flag (false), error object with code and message, additional context details, and timestamp for debugging purposes.
 
 ---
-
-## 🚀 Quick Start
-
-### Authentication Flow
-1. Register or sign in using phone number
-2. Verify OTP sent via SMS
-3. Use session cookie for protected endpoints
-
-### Common Operations
-- **Get session info:** `GET /protected/user/sessionDetail`
-- **Search doctors:** `GET /protected/user/searchDoctorByName?name=John&limit=5`
-- **List user files:** `GET /protected/resource/userFiles?q=1`
-- **Upload file:** `POST /protected/resource/uploadFile` (form-data with file and tags)
-- **Share file temporarily:** `POST /protected/resource/tempFileShare/{file_id}?p=user_id`
-- **Real-time notifications:** `GET /protected/notification/notify` (SSE stream)
-
-All protected endpoints require valid session cookie authentication.
